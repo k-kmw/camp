@@ -39,7 +39,6 @@ module.exports.createCamp = async (req, res, next) => {
     newCamp.image = req.files.map(file => ({url: file.path, filename: file.filename}))
     newCamp.author = req.user._id;
     await newCamp.save();
-    console.log(newCamp);
     req.flash('success', 'Successfully made a new campground');
     res.redirect(`campgrounds/${newCamp._id}`);
 }
@@ -47,7 +46,6 @@ module.exports.createCamp = async (req, res, next) => {
 module.exports.renderEditForm = async(req, res) => {
     const {id} = req.params;
     const campground = await Campground.findById(id);
-    console.log(campground);
     if(!campground) {
         req.flash('error', 'Cannot find that campground')
         return res.redirect('/campgrounds')
@@ -56,9 +54,14 @@ module.exports.renderEditForm = async(req, res) => {
 }
 
 module.exports.editCamp = async(req, res) => {
-    console.log(req.body);
-    const {id} = req.params;
+    const { id } = req.params;
+    const geoData = await geocodingClient.forwardGeocode({
+        query: req.body.campground.location,
+        limit: 1
+    })
+        .send()
     const campground = await Campground.findByIdAndUpdate(id, req.body.campground, {runValidators: true, new: true});
+    campground.geometry = geoData.body.features[0].geometry;
     const imgs = req.files.map(file => ({url: file.path, filename: file.filename}))
     campground.image.push(...imgs)
     campground.save();
